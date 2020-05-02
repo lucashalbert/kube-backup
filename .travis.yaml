@@ -1,4 +1,4 @@
-nguage: bash
+language: bash
 services:
   - docker
 sudo: required
