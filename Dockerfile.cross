@@ -1,0 +1,54 @@
+FROM __BASEIMAGE_ARCH__/alpine:3.11
+
+ENV KUBECTL_VERSION=__KUBECTL_VER__ \
+    KUBECTL_ARCH=__KUBECTL_ARCH__ \
+    __CROSS__QEMU_ARCH=__QEMU_ARCH__ \
+    PARAMS=""
+
+#ENV KUBECTL_SHA256 6e0aaaffe5507a44ec6b1b8a0fb585285813b78cc045f8804e70a6aac9d1cb4c
+#ENV KUBECTL_URI https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+
+LABEL build_version="Build-date: ${BUILD_DATE}"
+LABEL maintainer="Lucas Halbert <lhalbert@lhalbert.xyz>"
+MAINTAINER Lucas Halbert <lhalbert@lhalbert.xyz>
+
+# __CROSS__COPY static qemu binary for cross-platform support
+__CROSS__COPY qemu-${QEMU_ARCH}-static /usr/bin/
+
+RUN apk update && \
+  apk add --no-cache --update \
+    bash \
+    easy-rsa \
+    git \
+    openssh-client \
+    curl \
+    ca-certificates \
+    jq \
+    python \
+    py-yaml \
+    py2-pip \
+    libstdc++ \
+    gpgme \
+    git-crypt \
+  && \
+  apk del --purge && \
+  rm -rf /var/cache/apk/*
+
+RUN pip install ijson awscli
+RUN adduser -h /backup -D backup
+
+#RUN curl -SL ${KUBECTL_URI} -o kubectl && chmod +x kubectl
+#RUN echo "${KUBECTL_SHA256}  kubec tl" | sha256sum -c - || exit 10
+
+ADD https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/${KUBECTL_ARCH}/kubectl /
+RUN chmod +x kubectl
+
+
+# __CROSS__ Delete static qemu binary
+__CROSS__RUN rm -f /usr/bin/qemu-${QEMU_ARCH}-static
+
+ENV PATH="/:${PATH}"
+
+COPY entrypoint.sh /
+USER backup
+ENTRYPOINT ["/entrypoint.sh"]
